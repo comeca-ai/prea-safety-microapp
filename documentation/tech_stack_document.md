@@ -1,90 +1,94 @@
-# Tech Stack Document
+# Tech Stack Document for Preá Safety Training Micro-app
 
-This document explains the key technologies chosen for the **codeguide-starter** project. It’s written in everyday language so anyone—technical or not—can understand why each tool was picked and how it supports the application.
+This document explains, in everyday language, the main technologies and tools used in the Preá Safety Training Micro-app. Our goal is to show why each choice was made and how it contributes to a fast, secure, and user-friendly experience—without assuming any technical background.
 
 ## 1. Frontend Technologies
-The frontend is everything the user sees and interacts with. For this project, we’ve used:
+These are the building blocks that the user interacts with directly in their browser or mobile device:
 
-- **Next.js (App Router)**
-  - A React framework that makes page routing, server-side rendering, and API routes very simple.
-  - Enhances user experience by pre-rendering pages on the server or at build time, leading to faster initial load.
-- **React 18**
-  - The underlying library for building user interfaces with reusable components.
-  - Provides a smooth, interactive experience thanks to its virtual DOM and modern hooks.
-- **TypeScript**
-  - A superset of JavaScript that adds types (labels for data).
-  - Helps catch errors early during development and makes the code easier to maintain.
-- **CSS (globals.css & theme.css)**
-  - **globals.css** applies base styles (fonts, colors, resets) across the entire app.
-  - **dashboard/theme.css** defines the look and feel specific to the dashboard area.
-  - This separation keeps styles organized and avoids accidental style conflicts.
+- **Next.js (App Router)**  
+  A modern framework that makes pages load quickly. It handles server-side rendering (SSR) and static site generation (SSG) so that content appears almost instantly—even on slower 4G connections at the beach.
 
-By combining these tools, we have a clear structure (Next.js folders for pages and layouts), safer code (TypeScript), and flexible styling with vanilla CSS.
+- **TypeScript**  
+  A version of JavaScript that catches mistakes early by checking types (for example, making sure you don’t mix up numbers and words). This helps keep the code reliable and easier to update.
+
+- **shadcn/ui**  
+  A library of ready-made user interface components (buttons, cards, switch toggles). It ensures a consistent, mobile-first look and feel, so everything—from quiz radio buttons to checklist toggles—behaves and looks the same.
+
+- **Tailwind CSS v4 with CSS Variables**  
+  A styling tool that lets us write simple, human-readable class names for colors, spacing, and layout. CSS variables make it easy to switch themes (light/dark mode) based on ambient lighting, like bright sunlight versus evening sessions.
+
+- **Responsive Design Principles**  
+  All pages and components are built with mobile-first layouts in mind—large tap targets, clear fonts, and adaptive spacing—so users can complete the quiz and checklist comfortably on their phones.
 
 ## 2. Backend Technologies
-The backend handles data, user accounts, and the logic behind the scenes. Our choices here are:
+These tools handle data storage, user accounts, and server-side logic behind the scenes:
 
-- **Next.js API Routes**
-  - Allows us to write server-side code (`route.ts` files) alongside our frontend in the same project.
-  - Runs on Node.js, so we can handle requests like sign-up, sign-in, and data fetching in one place.
-- **Node.js Runtime**
-  - The JavaScript environment on the server that executes our API routes.
-- **bcrypt** (npm package)
-  - A library for hashing passwords securely before storing them.
-  - Ensures that even if someone got access to our data, raw passwords aren’t visible.
-- **(Optional) NextAuth.js or JWT**
-  - While this starter kit shows a custom authentication flow, it can easily integrate services like NextAuth.js for email-based login or JWT (JSON Web Tokens) for stateless sessions.
+- **Supabase (Auth & Database)**  
+  A managed service that provides both user authentication and a PostgreSQL database:
+  • **Magic Link Authentication**: Users enter their email and receive a secure login link—no passwords to remember.  
+  • **PostgreSQL Database**: Stores quiz questions, user attempts, and checklist sessions.  
+  • **Row Level Security (RLS)**: Ensures each user only sees their own data.
 
-These components work together to receive user credentials, verify or store them securely, manage sessions or tokens, and deliver protected data back to the frontend.
+- **supabase-js & @supabase/auth-helpers-nextjs**  
+  Official Supabase libraries that make it easy to connect from Next.js pages and API routes.
+
+- **Next.js API Routes & Server Actions**  
+  Built-in server endpoints for handling form submissions, database queries, and secure calls to third-party services (like n8n or GPT) without exposing secrets to the browser.
 
 ## 3. Infrastructure and Deployment
-Infrastructure covers where and how we host the app, as well as how changes get delivered:
+How the app is hosted, updated, and kept running smoothly:
 
-- **Git & GitHub**
-  - Version control system (Git) and remote hosting (GitHub) keep track of all code changes and allow team collaboration.
-- **Vercel (or Netlify)**
-  - A popular hosting service optimized for Next.js, with one-click deployments and global content delivery.
-  - Automatically rebuilds and deploys the site whenever code is pushed to the main branch.
-- **GitHub Actions (CI/CD)**
-  - Automates tasks like linting (ESLint), formatting (Prettier), and running any tests you add.
-  - Ensures that only clean, tested code goes live.
+- **Version Control (Git & GitHub)**  
+  All code is tracked and shared via Git on GitHub. This ensures a clear history of changes and easy collaboration.
 
-Together, these tools provide a reliable, scalable setup where every code change is tested and deployed quickly, with minimal manual work.
+- **Continuous Deployment (Vercel)**  
+  Every time we push code to the main branch, Vercel automatically builds and deploys the updated micro-app. This means new features and fixes go live in minutes, without manual steps.
+
+- **Supabase Cloud Hosting**  
+  The database and authentication services are hosted by Supabase’s managed platform, ensuring high availability and automatic backups.
+
+- **Docker & Docker Compose (Local Development)**  
+  Developers can spin up the same environment on their laptops—complete with Next.js and any service mocks—using a simple `docker-compose up` command. This avoids the "it works on my machine" problem.
 
 ## 4. Third-Party Integrations
-While this starter kit is minimal by design, it already includes or can easily add:
+Additional services that extend the app’s capabilities:
 
-- **bcrypt**
-  - For secure password hashing (included as an npm dependency).
-- **NextAuth.js** (optional)
-  - A full-featured authentication library supporting email/password, OAuth, and more.
-- **Sentry or LogRocket** (optional)
-  - For real-time error tracking and performance monitoring in production.
+- **n8n (Workflow Automation)**  
+  An open-source automation tool that:
+  • Imports quiz questions from a CSV file.  
+  • Sends personalized feedback via email or WhatsApp after quiz completion.
 
-These integrations help extend the app’s capabilities without building every feature from scratch.
+- **OpenAI GPT API**  
+  Generates short, standardized explanations for any incorrect quiz answers. We call it from a secure server route so API keys stay safe.
+
+- **Environment Variables**  
+  Keys and URLs for Supabase, OpenAI, and n8n are stored in a hidden `.env.local` file—never in the public code—to protect sensitive information.
 
 ## 5. Security and Performance Considerations
-We’ve baked in several measures to keep users safe and the app running smoothly:
+Measures we’ve taken to keep data safe and ensure a smooth experience:
 
-Security:
-- Passwords are never stored in plain text—bcrypt hashes them with a random salt.
-- API routes can implement CSRF protection and input validation to block malicious requests.
-- Session tokens or cookies are marked secure and HttpOnly to prevent theft via JavaScript.
+- **Secure Authentication**  
+  Magic links mean no passwords are stored or transmitted. Supabase’s RLS policies prevent users from seeing or changing other users’ data.
 
-Performance:
-- Server-side rendering (SSR) and static site generation (SSG) in Next.js deliver pages faster.
-- Code splitting and lazy-loaded components ensure users only download what they need.
-- Global CSS and theme files are small and cached by the browser for quick repeat visits.
+- **HTTPS Everywhere**  
+  All communication between the user’s device, Vercel, and Supabase happens over encrypted HTTPS connections.
 
-These strategies work together to give users a fast, secure experience every time.
+- **Minimal Client-Side JavaScript**  
+  By leveraging Next.js server rendering for core pages, we reduce the amount of code the browser needs to download and run. This leads to faster page loads and lower data usage.
+
+- **Error Handling & User Feedback**  
+  All network requests include clear success and error messages, helping users understand what’s happening (e.g., “Quiz saved!” or “Network error, please try again”).
+
+- **Accessibility**  
+  We follow best practices—proper color contrast, large tap zones, and semantic HTML—to ensure the app is easy to use under bright sunlight and accessible to all.
 
 ## 6. Conclusion and Overall Tech Stack Summary
-In building **codeguide-starter**, we chose technologies that:
+Our Preá Safety Training Micro-app combines modern, proven technologies to deliver a fast, reliable, and user-friendly experience:
 
-- Align with modern web standards (Next.js, React, TypeScript).
-- Provide a clear, file-based project structure for rapid onboarding.
-- Offer built-in support for server-side rendering, API routes, and static assets.
-- Emphasize security through password hashing, session management, and safe defaults.
-- Enable easy scaling and future enhancements via modular code and optional integrations.
+- Frontend: Next.js, TypeScript, shadcn/ui, Tailwind CSS
+- Backend: Supabase (Auth + PostgreSQL), Next.js API Routes
+- Automation: n8n workflows, OpenAI GPT for feedback
+- Infrastructure: GitHub + Vercel for code and deployment, Docker for local setup
+- Security & Performance: Magic Link login, RLS, HTTPS, optimized rendering, accessibility practices
 
-This stack strikes a balance between simplicity for newcomers and flexibility for experienced teams. It accelerates development of a secure authentication flow and a polished dashboard, while leaving room to plug in databases, test suites, and advanced features as the project grows.
+This combination ensures that students and instructors can quickly scan a QR code, log in with a single click, complete a safety quiz and checklist, and review their history—all within seconds, even on a slow connection at the beach. The choices we’ve made emphasize simplicity, security, and speed, aligning perfectly with the project’s goals and user needs.

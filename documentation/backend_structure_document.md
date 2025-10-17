@@ -1,179 +1,179 @@
-# Backend Structure Document
+# Preá Safety Micro-app Backend Structure Document
 
-This document outlines the backend architecture, hosting, and infrastructure for the **codeguide-starter** project. It uses plain language so anyone can understand how the backend is set up and how it supports the application.
+This document outlines the backend setup for the Preá Safety Training micro-application. It describes each component in everyday language so that anyone—from newcomers to non-technical stakeholders—can understand how the system works, how it’s hosted, and how it stays secure and reliable.
 
 ## 1. Backend Architecture
 
-- **Framework and Design Pattern**
-  - We use **Next.js API Routes** to handle all server-side logic. These routes live alongside the frontend code in the same repository, making development and deployment simpler.
-  - The backend follows a **layered pattern**:
-    1. **API Layer**: Receives requests (login, registration, data fetch).  
-    2. **Service Layer**: Contains the core business logic (user validation, password hashing).  
-    3. **Data Access Layer**: Talks to the database via a simple ORM (e.g., Prisma or TypeORM).
+### Overall Design
+- Built on **Next.js** using the App Router. This gives us:
+  - **Serverless functions** (API routes) for backend logic without managing our own servers.
+  - **Server Components** for fast initial loads and **Client Components** for interactive features (the quiz and checklist).
+- Written in **TypeScript** to catch errors early and keep code maintainable.
+- Organized in layers:
+  1. **API Layer** (Next.js routes) handles incoming requests.
+  2. **Service Layer** contains business logic (quiz scoring, checklist state).
+  3. **Data Access Layer** uses the Supabase client to read/write data.
 
+### Scalability, Maintainability, Performance
 - **Scalability**
-  - Stateless API routes can scale horizontally—new instances can spin up on demand.  
-  - We can add caching or a message queue (e.g., Redis or RabbitMQ) without changing the core code.
-
+  - Serverless backend on Vercel scales automatically with traffic.
+  - Supabase (PostgreSQL) managed by Supabase’s cloud ensures the database can grow.
 - **Maintainability**
-  - Code for each feature is grouped by route (authentication, dashboard).  
-  - A service layer separates complex logic from request handling.
-
+  - Modular code (separate files for auth, data, and UI components).
+  - TypeScript types generated from the database schema to keep frontend and backend in sync.
 - **Performance**
-  - Lightweight Node.js handlers keep response times low.  
-  - Future use of database connection pooling and Redis for caching repeated queries.
+  - Server Components minimize JavaScript sent to the client.
+  - Vercel’s global CDN delivers pages and static assets close to users.
+  - Edge caching for API responses where appropriate (e.g., quiz questions).
 
 ## 2. Database Management
 
-- **Database Choice**
-  - We recommend **PostgreSQL** for structured data and reliable transactions.  
-  - In-memory caching can be added later with **Redis** for session tokens or frequently read data.
+### Technologies Used
+- **Type**: Relational (SQL)
+- **Provider**: Supabase (managed PostgreSQL)
 
-- **Data Storage and Access**
-  - Use an ORM like **Prisma** or **TypeORM** to map JavaScript/TypeScript objects to database tables.
-  - Connection pooling ensures efficient use of database connections under load.
-  - Migrations track schema changes over time, keeping development, staging, and production in sync.
-
-- **Data Practices**
-  - Passwords are never stored in plain text—they are salted and hashed with **bcrypt** before saving.
-  - All outgoing data is typed and validated to prevent malformed records.
+### Data Storage and Access
+- Tables are defined in Supabase and follow a clear naming convention:
+  - `quiz_questions` stores each quiz question and possible answers.
+  - `quiz_attempts` logs every user’s quiz submission and score.
+  - `checklist_sessions` records each pre-session checklist completion.
+- **Row-Level Security (RLS)** is enabled so users only see their own records.
+- The Next.js backend uses the `@supabase/auth-helpers-nextjs` SDK and `@supabase/supabase-js` to connect securely.
+- Environment variables store keys and URLs, following 12-factor app guidelines.
 
 ## 3. Database Schema
 
-### Human-Readable Format
-
-- **Users**
-  - **id**: Unique identifier  
-  - **email**: User’s email address (unique)  
-  - **password_hash**: Securely hashed password  
-  - **created_at**: Account creation timestamp
-
-- **Sessions**
-  - **id**: Unique session record  
-  - **user_id**: Links to a user  
-  - **token**: Random string for authentication  
-  - **expires_at**: When the token stops working  
-  - **created_at**: When the session was created
-
-- **DashboardItems** *(optional for dynamic data)*
-  - **id**: Unique record  
-  - **title**: Item title  
-  - **content**: Item details  
-  - **created_at**: When the item was added
+### Human-Readable Overview
+- **quiz_questions**
+  - `id`: unique identifier for each question
+  - `question_text`: the question itself
+  - `options`: list of answer choices
+  - `correct_option`: index or key pointing to the right answer
+- **quiz_attempts**
+  - `id`: unique identifier for each attempt
+  - `user_id`: which user took the quiz
+  - `question_id`: which question was answered
+  - `selected_option`: what the user chose
+  - `is_correct`: true/false
+  - `attempted_at`: timestamp of the submission
+- **checklist_sessions**
+  - `id`: unique identifier for each session
+  - `user_id`: who completed the checklist
+  - `item_statuses`: list of booleans for each checklist item
+  - `completed_at`: timestamp when checklist was finished
 
 ### SQL Schema (PostgreSQL)
 ```sql
--- Users table
-CREATE TABLE users (
-  id SERIAL PRIMARY KEY,
-  email VARCHAR(255) UNIQUE NOT NULL,
-  password_hash VARCHAR(255) NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT now()
+-- Quiz Questions Table
+define table quiz_questions (
+  id             uuid       primary key,
+  question_text  text       not null,
+  options        jsonb      not null,
+  correct_option integer    not null,
+  created_at     timestamptz default now()
 );
 
--- Sessions table
-CREATE TABLE sessions (
-  id SERIAL PRIMARY KEY,
-  user_id INT REFERENCES users(id) ON DELETE CASCADE,
-  token VARCHAR(255) UNIQUE NOT NULL,
-  expires_at TIMESTAMPTZ NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT now()
+-- Quiz Attempts Table
+define table quiz_attempts (
+  id              uuid       primary key,
+  user_id         uuid       not null references auth.users(id),
+  question_id     uuid       not null references quiz_questions(id),
+  selected_option integer    not null,
+  is_correct      boolean    not null,
+  attempted_at    timestamptz default now()
 );
 
--- Dashboard items table
-CREATE TABLE dashboard_items (
-  id SERIAL PRIMARY KEY,
-  title TEXT NOT NULL,
-  content TEXT,
-  created_at TIMESTAMPTZ DEFAULT now()
+-- Checklist Sessions Table
+define table checklist_sessions (
+  id             uuid       primary key,
+  user_id        uuid       not null references auth.users(id),
+  item_statuses  jsonb      not null,
+  completed_at   timestamptz default now()
 );
-```  
+```
 
 ## 4. API Design and Endpoints
 
-- **Approach**: We follow a **RESTful** style, grouping related endpoints under `/api` directories.
+We follow **RESTful** conventions using Next.js API routes.
 
-- **Key Endpoints**
-  - `POST /api/auth/register`  
-    • Accepts `{ email, password }`  
-    • Creates a new user and issues a session token  
-  - `POST /api/auth/login`  
-    • Accepts `{ email, password }`  
-    • Verifies credentials and returns a session token  
-  - `POST /api/auth/logout`  
-    • Invalidates the session token on the server  
-  - `GET /api/dashboard/data`  
-    • Requires a valid session  
-    • Returns user-specific data or dashboard items  
+### Key Endpoints
+- **Authentication**
+  - `POST /api/auth/magic-link` — sends a login link to the user’s email.
+- **Quiz**
+  - `GET /api/quiz/questions` — fetches all quiz questions.
+  - `POST /api/quiz/attempts` — records a user’s answers and returns feedback.
+- **Checklist**
+  - `GET /api/checklist` — retrieves the 6 checklist items.
+  - `POST /api/checklist/sessions` — saves the completed checklist state.
+- **History**
+  - `GET /api/history/quiz` — returns past quiz attempts for the logged-in user.
+  - `GET /api/history/checklist` — returns past checklist sessions.
+- **Automation & AI**
+  - `POST /api/webhooks/n8n` — triggers an n8n workflow (e.g., send WhatsApp feedback).
+  - `POST /api/ai/generate-explanation` — calls OpenAI’s GPT API to generate a short explanation for wrong answers.
 
-- **Communication**
-  - Frontend sends JSON requests; backend replies with JSON and appropriate HTTP status codes.  
-  - Protected routes check for a valid session token (in cookies or Authorization header).
+All endpoints require a valid Supabase JWT token in the Authorization header.
 
 ## 5. Hosting Solutions
 
-- **Cloud Provider**:  
-  - **Vercel** (recommended) offers seamless Next.js deployments, auto-scaling, and built-in CDN.  
-  - Alternatively, **Netlify** or any Node.js-capable host will work.
+- **Frontend & API**: Hosted on **Vercel**
+  - Pros: automatic deployment from Git, global CDN, zero-config serverless functions.
+- **Database & Auth**: Managed by **Supabase**
+  - Pros: auto-scaling Postgres, built-in authentication, easy RLS setup, daily backups.
+- **n8n Workflows**: Can run on **n8n Cloud** or a small Docker VM
+  - Pros: visual workflow builder, webhook receivers, easy integration with Supabase and OpenAI.
 
-- **Benefits**
-  - **Reliability**: Global servers and failover across regions.  
-  - **Scalability**: Auto-scale serverless functions based on traffic.  
-  - **Cost-Effectiveness**: Pay-per-use model means low cost for small projects.
+This combination balances reliability, quick deployments, and predictable costs.
 
 ## 6. Infrastructure Components
 
-- **Load Balancer**
-  - Provided by the hosting platform—distributes API requests across function instances.
-
-- **CDN (Content Delivery Network)**
-  - Vercel’s global edge network caches static assets (CSS, JS, images) for faster page loads.
-
+- **Load Balancer & CDN**
+  - Handled by Vercel: routes incoming traffic to the nearest edge server.
 - **Caching**
-  - **Redis** (optional) for session storage or caching dashboard queries to reduce database load.
+  - Edge caching for static pages and quiz questions.
+  - In-memory caches (SWR) on the client for recent API calls.
+- **Containerization (Local Dev)**
+  - **Docker** and **docker-compose** to spin up a local environment mirroring production: Next.js app, mock Supabase (or direct cloud), and n8n.
+- **Content Delivery Network (CDN)**
+  - Vercel’s built-in CDN for assets (images, CSS, JavaScript bundles).
 
-- **Object Storage**
-  - For file uploads or backups, integrate with AWS S3 or similar services.
-
-- **Message Queue**
-  - In future, use **RabbitMQ** or **Kafka** for background tasks (e.g., email notifications).
+These components work together to ensure fast load times, even at busy times on the beach.
 
 ## 7. Security Measures
 
-- **Authentication & Authorization**
-  - Passwords hashed with **bcrypt** and salted.  
-  - Session tokens stored in secure, HttpOnly cookies or Authorization headers.  
-  - Protected endpoints verify tokens before proceeding.
-
+- **Authentication**
+  - Email-based **Magic Link** via Supabase Auth—no passwords to manage.
+  - JSON Web Tokens (JWT) for securing API routes.
+- **Authorization**
+  - Row-Level Security (RLS) policies in Supabase to restrict data access.
+  - Middleware in Next.js checks each request’s JWT before proceeding.
 - **Data Encryption**
-  - **HTTPS/TLS** encrypts data in transit.  
-  - Database connections use SSL to encrypt data between the app and the database.
-
-- **Input Validation**
-  - Every incoming request is validated (e.g., valid email format, password length) to prevent SQL injection or other attacks.
-
-- **Web Security Best Practices**
-  - Enable **CORS** policies to limit allowed origins.  
-  - Use **CSRF tokens** or same-site cookies to prevent cross-site requests.  
-  - Set secure headers with **Helmet** or a similar middleware.
+  - TLS/HTTPS enforced for all data in transit.
+  - Supabase encrypts data at rest in the managed database.
+- **Secrets Management**
+  - Environment variables store all keys (Supabase, n8n, OpenAI) outside of code.
+  - Rotated regularly according to security best practices.
 
 ## 8. Monitoring and Maintenance
 
 - **Performance Monitoring**
-  - Integrate **Sentry** or **LogRocket** for real-time crash reporting and performance tracing.  
-  - Use Vercel’s built-in analytics to track request latencies and error rates.
-
-- **Logging**
-  - Structured logs (JSON) for all API requests and errors, shipped to a log management service like **Datadog** or **Logflare**.
-
-- **Health Checks**
-  - Define a `/health` endpoint that returns a 200 status if the service is up and the database is reachable.
-
-- **Maintenance Strategies**
-  - Automated migrations run on deploy to keep the database schema up to date.  
-  - Scheduled dependency audits and security scans (e.g., `npm audit`).
-  - Regular backups of the database (daily or weekly depending on usage).
+  - Vercel Analytics to track latency, cold starts, and error rates.
+  - Supabase Dashboard for database performance and slow query logs.
+- **Error Tracking**
+  - (Optional) Integrate Sentry or LogRocket for capturing client-side and server-side exceptions.
+- **Workflows Monitoring**
+  - n8n Cloud’s built-in logging for each webhook and workflow execution.
+- **Maintenance Strategy**
+  - Weekly dependency updates via Dependabot or Renovate.
+  - Automated database backups handled by Supabase.
+  - Quarterly reviews of RLS policies and environment variables.
 
 ## 9. Conclusion and Overall Backend Summary
 
-The backend for **codeguide-starter** is built on Next.js API Routes and Node.js, paired with PostgreSQL for data and optional Redis for caching. It follows a clear layered architecture that keeps code easy to maintain and extend. With RESTful endpoints for authentication and data, secure practices like password hashing and HTTPS, and hosting on Vercel for scalability and global performance, this setup meets the project’s goals for a fast, secure, and developer-friendly foundation. Future enhancements—such as background job queues, advanced monitoring, or richer data models—can be added without disrupting the core structure.
+The Preá Safety micro-app backend is built for reliability, speed, and ease of use. By leveraging serverless Next.js on Vercel and a managed PostgreSQL from Supabase, we achieve:
+
+- A **scalable** and **cost-effective** hosting environment.
+- A **secure** authentication and data storage system with minimal friction for users.
+- A clear, **modular** code structure in TypeScript that’s easy to maintain and extend.
+
+Automation via n8n and AI-powered feedback through GPT enrich the user experience without complicating the core architecture. Overall, this setup aligns perfectly with the project’s goals of fast loading times, straightforward safety training, and future growth—ensuring every kitesurf student can complete their pre-session checklist quickly and safely.
